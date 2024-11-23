@@ -2,96 +2,99 @@ package com.alatoo.employeemanagementsystem;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.MouseEvent;
+
+
+import java.time.LocalDate;
 
 public class EmployeeController {
+    @FXML private TextField nameField, hourlyRateField, hoursWorkedField, maxHoursField, annualSalaryField, positionField;
+    @FXML private ChoiceBox<String> employeeTypeChoiceBox;
+    @FXML private DatePicker hireDatePicker;
+    @FXML private TableView<com.alatoo.employeemanagementsystem.EmployeeRecord> employeeTable;
+    @FXML private TableColumn<com.alatoo.employeemanagementsystem.EmployeeRecord, Integer> idColumn;
+    @FXML private TableColumn<com.alatoo.employeemanagementsystem.EmployeeRecord, String> nameColumn, typeColumn, positionColumn, hireDateColumn;
+    @FXML private TableColumn<com.alatoo.employeemanagementsystem.EmployeeRecord, Double> salaryColumn;
+    @FXML private Label totalSalaryLabel;
 
-    @FXML
-    private TableView<Employee> employeeTable;
-    @FXML
-    private TableColumn<Employee, String> nameColumn;
-    @FXML
-    private TableColumn<Employee, String> typeColumn;
-    @FXML
-    private TableColumn<Employee, String> salaryColumn;
-    @FXML
-    private TextField nameField;
-    @FXML
-    private ChoiceBox<String> typeChoice;
-    @FXML
-    private TextField hourlyRateField;
-    @FXML
-    private TextField hoursWorkedField;
-
-    private ObservableList<Employee> employeeList = FXCollections.observableArrayList();
+    private final ObservableList<com.alatoo.employeemanagementsystem.EmployeeRecord> employees = FXCollections.observableArrayList();
+    private int employeeIdCounter = 1;
 
     @FXML
     public void initialize() {
-        // Set up table columns
+        // Initialize ChoiceBox values
+        employeeTypeChoiceBox.setItems(FXCollections.observableArrayList("Full-time", "Part-time", "Contractor"));
+
+        // Set up TableView columns
+        idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
         typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
-        salaryColumn.setCellValueFactory(cellData ->
-                cellData.getValue().salaryProperty().asString("%.2f"));
+        salaryColumn.setCellValueFactory(new PropertyValueFactory<>("salary"));
+        positionColumn.setCellValueFactory(new PropertyValueFactory<>("position"));
+        hireDateColumn.setCellValueFactory(new PropertyValueFactory<>("hireDate"));
 
-        employeeTable.setItems(employeeList);
-
-        // Set default type choice
-        typeChoice.getSelectionModel().selectFirst();
+        // Bind the employee list to the TableView
+        employeeTable.setItems(employees);
     }
 
     @FXML
-    private void handleAddEmployee() {
-        try {
-            String name = nameField.getText().trim();
-            String type = typeChoice.getValue();
-            if (name.isEmpty() || type == null) {
-                showAlert("Validation Error", "Name and Type must be provided.");
-                return;
-            }
-            double hourlyRate = parseDoubleField(hourlyRateField, "Hourly Rate");
-            double hoursWorked = parseDoubleField(hoursWorkedField, "Hours Worked");
+    private void addEmployee() {
+        String name = nameField.getText();
+        String type = employeeTypeChoiceBox.getValue();
+        String position = positionField.getText();
+        LocalDate hireDate = hireDatePicker.getValue();
+        Employee employee;
 
-            Employee employee;
+        if (name.isEmpty() || type == null || position.isEmpty() || hireDate == null) {
+            showAlert("Validation Error", "Please fill all fields.");
+            return;
+        }
+
+        try {
             switch (type) {
-                case "Full-time" -> employee = new FullTimeEmployee(name, hourlyRate); // Treat hourlyRate as salary for simplicity.
-                case "Part-time" -> employee = new PartTimeEmployee(name, hourlyRate, hoursWorked);
-                case "Contractor" -> employee = new Contractor(name, hourlyRate, hoursWorked);
-                default -> throw new IllegalArgumentException("Invalid employee type.");
+                case "Full-time":
+                    double annualSalary = Double.parseDouble(annualSalaryField.getText());
+                    employee = new com.alatoo.employeemanagementsystem.FullTimeEmployee(name, position, annualSalary);
+                    break;
+                case "Part-time":
+                    double hourlyRate = Double.parseDouble(hourlyRateField.getText());
+                    int hoursWorked = Integer.parseInt(hoursWorkedField.getText());
+                    employee = new com.alatoo.employeemanagementsystem.PartTimeEmployee(name, position, hourlyRate, hoursWorked);
+                    break;
+                case "Contractor":
+                    double contractorHourlyRate = Double.parseDouble(hourlyRateField.getText());
+                    int maxHours = Integer.parseInt(maxHoursField.getText());
+                    employee = new com.alatoo.employeemanagementsystem.Contractor(name, position, contractorHourlyRate, maxHours);
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown employee type.");
             }
 
-            employeeList.add(employee);
+            employees.add(new com.alatoo.employeemanagementsystem.EmployeeRecord(employeeIdCounter++, name, type, position, employee.calculateSalary(), hireDate.toString()));
             clearFields();
-        } catch (IllegalArgumentException e) {
-            showAlert("Validation Error", e.getMessage());
-        }
-    }
-
-    private double parseDoubleField(TextField field, String fieldName) {
-        try {
-            return Double.parseDouble(field.getText().trim());
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException(fieldName + " must be a valid number.");
+            showAlert("Validation Error", "Please enter valid numeric values.");
         }
     }
 
-
     @FXML
-    private void handleCalculateSalaries() {
-        for (Employee employee : employeeList) {
-            employee.calculateSalary();
-        }
-        employeeTable.refresh();
+    private void calculateSalaries() {
+        double totalSalaries = employees.stream().mapToDouble(com.alatoo.employeemanagementsystem.EmployeeRecord::getSalary).sum();
+        totalSalaryLabel.setText("Total Salaries: $" + totalSalaries);
+        totalSalaryLabel.setVisible(true);
     }
 
     @FXML
-    private void handleRemoveEmployee() {
-        Employee selectedEmployee = employeeTable.getSelectionModel().getSelectedItem();
-        if (selectedEmployee != null) {
-            employeeList.remove(selectedEmployee);
+    private void deleteSelectedEmployee() {
+        com.alatoo.employeemanagementsystem.EmployeeRecord selected = employeeTable.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            employees.remove(selected);
         } else {
-            showAlert("No Selection", "Please select an employee to remove.");
+            showAlert("Selection Error", "No employee selected.");
         }
     }
 
@@ -99,12 +102,20 @@ public class EmployeeController {
         nameField.clear();
         hourlyRateField.clear();
         hoursWorkedField.clear();
+        maxHoursField.clear();
+        annualSalaryField.clear();
+        positionField.clear();
+        hireDatePicker.setValue(null);
+        employeeTypeChoiceBox.setValue(null);
     }
 
     private void showAlert(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
+        Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle(title);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    public void updateSelectedEmployee(ActionEvent actionEvent) {
     }
 }
