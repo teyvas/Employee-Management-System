@@ -79,4 +79,5 @@ This JavaFX application manages a list of employees and their salaries. It demon
         - Text fields for input
         - Choice boxes for employee types
         - Table view for displaying employee details
-    
+    ![Screenshot_2024-11-24_01-04-14](https://github.com/user-attachments/assets/fa7fc379-3684-4786-a2cc-a5172b062d1e)
+![Screenshot_2024-11-24_01-03-04](https://github.com/user-attachments/assets/7c8efbc5-d293-4c79-8d9d-da9db70d5425)
